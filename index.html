@@ -1,0 +1,177 @@
+
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#071321">
+<title>Candy - Escucha</title>
+<style>
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  padding: 24px 16px;
+  background: #071321;
+  color: #eafaff;
+  font-family: Arial, sans-serif;
+  text-align: center;
+}
+main {
+  max-width: 520px;
+  margin: 35px auto;
+  padding: 25px;
+  border: 1px solid #164b66;
+  border-radius: 20px;
+  background: #0d2032;
+}
+h1 {
+  color: #42d9ff;
+  letter-spacing: 5px;
+  font-size: 32px;
+}
+p { color: #b8cbd8; line-height: 1.5; }
+.status {
+  margin: 22px 0;
+  padding: 15px;
+  border-radius: 12px;
+  background: #102b40;
+  color: #42d9ff;
+}
+button {
+  display: block;
+  width: 100%;
+  padding: 16px;
+  margin: 12px 0;
+  border: 0;
+  border-radius: 12px;
+  background: #087fa5;
+  color: white;
+  font-size: 16px;
+  font-weight: bold;
+}
+button.stop { background: #35495b; }
+#transcript {
+  min-height: 100px;
+  padding: 16px;
+  margin-top: 20px;
+  border: 1px solid #24516a;
+  border-radius: 12px;
+  text-align: left;
+  overflow-wrap: anywhere;
+  color: white;
+}
+.small { font-size: 12px; color: #8fa8ba; }
+</style>
+</head>
+<body>
+<main>
+  <h1>CANDY</h1>
+  <p>Módulo independiente de escucha</p>
+
+  <div class="status" id="status">
+    Preparada para comprobar el micrófono
+  </div>
+
+  <button id="check">1. COMPROBAR MICRÓFONO</button>
+  <button id="start">2. INICIAR ESCUCHA</button>
+  <button id="stop" class="stop">DETENER ESCUCHA</button>
+
+  <div id="transcript">
+    Aquí aparecerán las palabras que Candy reconozca.
+  </div>
+
+  <p class="small">
+    Esta página es una prueba. Todavía no está conectada
+    con Gemini ni con la voz de ElevenLabs.
+  </p>
+</main>
+
+<script>
+const statusBox = document.getElementById("status");
+const transcript = document.getElementById("transcript");
+const checkButton = document.getElementById("check");
+const startButton = document.getElementById("start");
+const stopButton = document.getElementById("stop");
+
+let recognition = null;
+
+function status(message) {
+  statusBox.textContent = message;
+}
+
+checkButton.addEventListener("click", async () => {
+  try {
+    if (!navigator.mediaDevices ||
+        !navigator.mediaDevices.getUserMedia) {
+      status("Este navegador no permite comprobar el micrófono aquí.");
+      return;
+    }
+
+    status("Solicitando acceso al micrófono...");
+
+    const stream = await navigator.mediaDevices.getUserMedia({
+      audio: true
+    });
+
+    stream.getTracks().forEach(track => track.stop());
+    status("¡Micrófono autorizado y funcionando!");
+  } catch (error) {
+    status("Error del micrófono: " + error.name);
+  }
+});
+
+startButton.addEventListener("click", () => {
+  const SpeechRecognition =
+    window.SpeechRecognition ||
+    window.webkitSpeechRecognition;
+
+  if (!SpeechRecognition) {
+    status("El reconocimiento de voz no está disponible en este navegador.");
+    return;
+  }
+
+  try {
+    recognition = new SpeechRecognition();
+    recognition.lang = "es-ES";
+    recognition.continuous = true;
+    recognition.interimResults = true;
+
+    recognition.onstart = () => {
+      status("Candy te está escuchando...");
+    };
+
+    recognition.onresult = (event) => {
+      let text = "";
+
+      for (let i = 0; i < event.results.length; i++) {
+        text += event.results[i][0].transcript + " ";
+      }
+
+      transcript.textContent = text.trim();
+    };
+
+    recognition.onerror = (event) => {
+      status("Error de reconocimiento: " + event.error);
+    };
+
+    recognition.onend = () => {
+      status("La escucha se ha detenido.");
+    };
+
+    recognition.start();
+  } catch (error) {
+    status("No se pudo iniciar: " + error.message);
+  }
+});
+
+stopButton.addEventListener("click", () => {
+  if (recognition) {
+    recognition.stop();
+    recognition = null;
+  }
+
+  status("Escucha detenida.");
+});
+</script>
+</body>
+</html>
