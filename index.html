@@ -940,7 +940,14 @@ body[data-candy-state="speaking"] .avatar-stage:after{
 </div>
 
 <script>
-const WORKER_URL = "https://candy-puente.multisergiogb001.workers.dev";
+"use strict";
+
+/* =========================================
+   CONFIGURACIÓN DE CANDY
+========================================= */
+
+const WORKER_URL =
+  "https://candy-puente.multisergiogb001.workers.dev";
 
 const statusBox = document.getElementById("status");
 const conversation = document.getElementById("conversation");
@@ -951,284 +958,449 @@ const listenButton = document.getElementById("listen");
 const stopButton = document.getElementById("stop");
 const loginBox = document.getElementById("login");
 const loginError = document.getElementById("loginError");
+const unlockButton = document.getElementById("unlock");
 
 let recognition = null;
 let escuchando = false;
 let procesando = false;
 let candyPassword = "";
+let cancelarRespuesta = false;
+let numeroInteraccion = 0;
 
-let elevenLabsNoDisponible = false;
-let audioActual = null;
 
-/* CONTROL DE ESTADOS VISUALES */
+/* =========================================
+   ESTADOS Y MENSAJES
+========================================= */
 
-function estado(texto, estadoCandy = "idle"){
+function estado(texto, estadoCandy = "idle") {
   statusBox.textContent = texto;
   document.body.dataset.candyState = estadoCandy;
 }
 
-function mostrar(quien,texto){
+function mostrar(quien, texto) {
   const div = document.createElement("div");
-  div.className = "message " + (quien === "Tú" ? "user" : "candy");
+
+  div.className =
+    "message " + (quien === "Tú" ? "user" : "candy");
+
   div.textContent = quien + ": " + texto;
+
   conversation.appendChild(div);
   conversation.scrollTop = conversation.scrollHeight;
+
+  while (conversation.children.length > 30) {
+    conversation.removeChild(conversation.firstChild);
+  }
 }
 
-/* CONEXIÓN CON EL PUENTE */
 
-async function llamarCandy(action,message){
-  if(!candyPassword){
-    throw new Error("Conecta primero con Candy introduciendo tu contraseña.");
+/* =========================================
+   SELECCIÓN DE VOZ ESPAÑOLA
+========================================= */
+
+function seleccionarVoz() {
+
+  if (!("speechSynthesis" in window)) {
+    return null;
   }
 
-  const response = await fetch(WORKER_URL,{
-    method:"POST",
-    headers:{"Content-Type":"application/json"},
-    body:JSON.stringify({
-      password:candyPassword,
-      action:action,
-      message:message
+  const voces = window.speechSynthesis.getVoices();
+
+  if (!voces.length) {
+    return null;
+  }
+
+  const espanolas = voces.filter(voz =>
+    voz.lang && voz.lang.toLowerCase().startsWith("es")
+  );
+
+  if (!espanolas.length) {
+    return null;
+  }
+
+  const nombresFemeninos =
+    /female|woman|mujer|femenina|helena|monica|mónica|laura|lucia|lucía|paulina|elvira|samantha|zira|google español/i;
+
+  const vozFemenina = espanolas.find(voz =>
+    nombresFemeninos.test(voz.name)
+  );
+
+  if (vozFemenina) {
+    return vozFemenina;
+  }
+
+  const vozEspana = espanolas.find(voz =>
+    voz.lang.toLowerCase() === "es-es"
+  );
+
+  return vozEspana || espanolas[0];
+}
+
+
+/* Android y Chrome pueden cargar las voces con retraso */
+
+if ("speechSynthesis" in window) {
+  window.speechSynthesis.onvoiceschanged = () => {
+    seleccionarVoz();
+  };
+}
+
+
+/* =========================================
+   VOZ GRATUITA DEL DISPOSITIVO
+========================================= */
+
+function hablarConNavegador(texto, identificador) {
+
+  return new Promise(resolve => {
+
+    if (!("speechSynthesis" in window)) {
+
+      estado(
+        "Candy ha respondido por escrito. La voz no está disponible en este navegador.",
+        "idle"
+      );
+
+      resolve(false);
+      return;
+    }
+
+    if (identificador !== numeroInteraccion) {
+      resolve(false);
+      return;
+    }
+
+    window.speechSynthesis.cancel();
+
+    const frase = new SpeechSynthesisUtterance(texto);
+
+    frase.lang = "es-ES";
+    frase.rate = 0.96;
+    frase.pitch = 1.08;
+    frase.volume = 1;
+
+    const voz = seleccionarVoz();
+
+    if (voz) {
+      frase.voice = voz;
+    }
+
+    frase.onstart = () => {
+
+      if (identificador !== numeroInteraccion) {
+        window.speechSynthesis.cancel();
+        return;
+      }
+
+      estado("Candy está hablando...", "speaking");
+    };
+
+    frase.onend = () => {
+
+      if (identificador === numeroInteraccion) {
+        estado("Candy está preparada.", "idle");
+      }
+
+      resolve(true);
+    };
+
+    frase.onerror = () => {
+
+      if (identificador === numeroInteraccion) {
+        estado(
+          "Candy ha respondido por escrito. No se ha podido reproducir la voz.",
+          "idle"
+        );
+      }
+
+      resolve(false);
+    };
+
+    estado("Preparando la voz de Candy...", "thinking");
+
+    window.speechSynthesis.speak(frase);
+
+  });
+}
+
+
+/* =========================================
+   CONEXIÓN CON CLOUDFLARE
+========================================= */
+
+async function llamarCandy(action, message) {
+
+  if (!candyPassword) {
+    throw new Error(
+      "Conecta primero con Candy introduciendo tu contraseña."
+    );
+  }
+
+  const response = await fetch(WORKER_URL, {
+    method: "POST",
+
+    headers: {
+      "Content-Type": "application/json"
+    },
+
+    body: JSON.stringify({
+      password: candyPassword,
+      action: action,
+      message: message
     })
   });
 
   let result;
 
-  try{
+  try {
     result = await response.json();
-  }catch(e){
-    throw new Error("El puente no ha devuelto una respuesta válida.");
+  } catch (error) {
+    throw new Error(
+      "El puente no ha devuelto una respuesta válida."
+    );
   }
 
-  if(!response.ok || result.error){
-    throw new Error(result.error || "Error de conexión.");
+  if (!response.ok || result.error) {
+    throw new Error(
+      result.error || "No se ha podido conectar con Candy."
+    );
   }
 
   return result;
 }
 
-/* VOZ ALTERNATIVA GRATUITA DEL NAVEGADOR */
 
-function hablarConNavegador(texto){
+/* =========================================
+   CONECTAR CON CANDY
+========================================= */
 
-  if(!("speechSynthesis" in window)){
-    estado(
-      "Candy ha respondido por texto. Este navegador no dispone de voz alternativa.",
-      "idle"
-    );
-    return;
-  }
+async function conectar() {
 
-  window.speechSynthesis.cancel();
-
-  const vozAlternativa = new SpeechSynthesisUtterance(texto);
-
-  vozAlternativa.lang = "es-ES";
-  vozAlternativa.rate = 1;
-  vozAlternativa.pitch = 1;
-
-  vozAlternativa.onstart = ()=>{
-    estado("Candy está hablando con la voz alternativa...","speaking");
-  };
-
-  vozAlternativa.onend = ()=>{
-    estado("Candy está preparada.","idle");
-  };
-
-  vozAlternativa.onerror = ()=>{
-    estado(
-      "Candy ha respondido por texto. La voz alternativa no está disponible.",
-      "idle"
-    );
-  };
-
-  estado("Preparando voz alternativa...","thinking");
-
-  window.speechSynthesis.speak(vozAlternativa);
-}
-
-/* CONECTAR CON CANDY */
-
-async function conectar(){
   const candidate = passwordBox.value.trim();
 
-  if(!candidate){
+  if (!candidate) {
     loginError.textContent = "Escribe tu contraseña.";
     passwordBox.focus();
     return;
   }
 
   candyPassword = candidate;
-  document.getElementById("unlock").disabled = true;
+  unlockButton.disabled = true;
   loginError.textContent = "Comprobando conexión...";
 
-  try{
+  try {
+
     const result = await llamarCandy(
       "chat",
       "Responde brevemente: conexión de Candy comprobada."
     );
 
-    if(!result.text){
+    if (!result.text) {
       throw new Error("No se recibió respuesta de Candy.");
     }
 
     loginBox.classList.add("hidden");
-    estado("Conexión establecida. Candy está preparada.","idle");
-    mostrar("Candy","Conexión establecida. Ya podemos hablar.");
+    passwordBox.value = "";
 
-  }catch(error){
+    estado(
+      "Conexión establecida. Candy está preparada.",
+      "idle"
+    );
+
+    mostrar(
+      "Candy",
+      "Conexión establecida. Ya podemos hablar."
+    );
+
+    seleccionarVoz();
+
+  } catch (error) {
+
     candyPassword = "";
     loginError.textContent = error.message;
-    estado("No se pudo establecer la conexión.","idle");
 
-  }finally{
-    document.getElementById("unlock").disabled = false;
+    estado(
+      "No se pudo establecer la conexión.",
+      "idle"
+    );
+
+  } finally {
+
+    unlockButton.disabled = false;
+
   }
 }
 
-/* ENVIAR MENSAJE Y RECIBIR RESPUESTA */
+unlockButton.addEventListener("click", conectar);
 
-async function enviarMensaje(texto){
+passwordBox.addEventListener("keydown", event => {
+  if (event.key === "Enter") {
+    conectar();
+  }
+});
 
-  if(procesando)return;
+
+/* =========================================
+   ENVIAR MENSAJES A GEMINI
+========================================= */
+
+async function enviarMensaje(texto) {
+
+  if (procesando) return;
 
   texto = (texto || "").trim();
-  if(!texto)return;
 
-  if(!candyPassword){
+  if (!texto) return;
+
+  if (!candyPassword) {
+
     loginBox.classList.remove("hidden");
-    estado("Conecta primero con tu contraseña.","idle");
+
+    estado(
+      "Conecta primero con tu contraseña.",
+      "idle"
+    );
+
     return;
   }
 
   procesando = true;
+  cancelarRespuesta = false;
+
+  const identificador = ++numeroInteraccion;
+
   sendButton.disabled = true;
   listenButton.disabled = true;
 
-  mostrar("Tú",texto);
-  estado("Candy está pensando...","thinking");
+  mostrar("Tú", texto);
 
-  try{
+  estado("Candy está pensando...", "thinking");
 
-    /* PRIMER PASO: RESPUESTA DE GEMINI */
+  try {
 
-    const respuesta = await llamarCandy("chat",texto);
+    /* Gemini responde mediante el puente actual */
 
-    if(!respuesta.text){
+    const respuesta = await llamarCandy("chat", texto);
+
+    if (identificador !== numeroInteraccion) {
+      return;
+    }
+
+    if (!respuesta.text) {
       throw new Error("Candy no ha devuelto texto.");
     }
 
-    mostrar("Candy",respuesta.text);
+    /* Mostrar la respuesta de Candy */
 
-    /* SEGUNDO PASO: ELEGIR LA VOZ */
+    mostrar("Candy", respuesta.text);
 
-    if(elevenLabsNoDisponible){
+    /* Leer la respuesta con la voz del dispositivo */
 
-      hablarConNavegador(respuesta.text);
-
-    }else{
-
-      try{
-
-        const voz = await llamarCandy("voice",respuesta.text);
-
-        if(!voz.audio){
-          throw new Error("No se ha recibido el audio.");
-        }
-
-        audioActual = new Audio(
-          "data:audio/mpeg;base64," + voz.audio
-        );
-
-        estado("Candy está hablando...","speaking");
-
-        audioActual.onended = ()=>{
-          audioActual = null;
-          estado("Candy está preparada.","idle");
-        };
-
-        audioActual.onerror = ()=>{
-          audioActual = null;
-          estado("No se pudo reproducir el audio.","idle");
-        };
-
-        await audioActual.play();
-
-      }catch(voiceError){
-
-        const mensajeError = voiceError.message || "";
-
-        if(
-          mensajeError.includes("quota_exceeded") ||
-          mensajeError.includes("credits") ||
-          mensajeError.includes("401")
-        ){
-          elevenLabsNoDisponible = true;
-        }
-
-        hablarConNavegador(respuesta.text);
-      }
+    if (!cancelarRespuesta) {
+      await hablarConNavegador(
+        respuesta.text,
+        identificador
+      );
     }
 
-  }catch(error){
+  } catch (error) {
 
-    estado("Aviso: " + error.message,"idle");
+    if (identificador === numeroInteraccion) {
 
-  }finally{
+      estado(
+        "Aviso: " + error.message,
+        "idle"
+      );
 
-    procesando = false;
-    sendButton.disabled = false;
-    listenButton.disabled = false;
+      mostrar(
+        "Candy",
+        "No he podido completar la respuesta. " + error.message
+      );
+
+    }
+
+  } finally {
+
+    if (identificador === numeroInteraccion) {
+
+      procesando = false;
+
+      sendButton.disabled = false;
+      listenButton.disabled = false;
+
+      if (document.body.dataset.candyState !== "idle") {
+        estado("Candy está preparada.", "idle");
+      }
+
+    }
+
   }
 }
 
-/* BOTÓN DE CONEXIÓN */
 
-document.getElementById("unlock").addEventListener("click",conectar);
+/* =========================================
+   BOTÓN ENVIAR
+========================================= */
 
-passwordBox.addEventListener("keydown",e=>{
-  if(e.key === "Enter")conectar();
-});
+sendButton.addEventListener("click", () => {
 
-/* BOTÓN ENVIAR */
-
-sendButton.addEventListener("click",()=>{
   const texto = messageBox.value.trim();
 
-  if(!texto)return;
+  if (!texto) return;
 
   messageBox.value = "";
+
   enviarMensaje(texto);
+
 });
 
-messageBox.addEventListener("keydown",e=>{
-  if(e.key === "Enter" && !e.shiftKey){
-    e.preventDefault();
+messageBox.addEventListener("keydown", event => {
+
+  if (event.key === "Enter" && !event.shiftKey) {
+
+    event.preventDefault();
     sendButton.click();
+
   }
+
 });
 
-/* MICRÓFONO */
 
-listenButton.addEventListener("click",()=>{
+/* =========================================
+   RECONOCIMIENTO DE VOZ
+========================================= */
+
+listenButton.addEventListener("click", () => {
 
   const SpeechRecognition =
-    window.SpeechRecognition || window.webkitSpeechRecognition;
+    window.SpeechRecognition ||
+    window.webkitSpeechRecognition;
 
-  if(!SpeechRecognition){
-    estado("Este navegador no admite reconocimiento de voz.","idle");
+  if (!SpeechRecognition) {
+
+    estado(
+      "Este navegador no admite reconocimiento de voz. Prueba con Chrome.",
+      "idle"
+    );
+
     return;
   }
 
-  if(!candyPassword){
+  if (!candyPassword) {
+
     loginBox.classList.remove("hidden");
-    estado("Conecta primero con tu contraseña.","idle");
+
+    estado(
+      "Conecta primero con tu contraseña.",
+      "idle"
+    );
+
     return;
   }
 
-  if(escuchando || procesando)return;
+  if (escuchando || procesando) return;
 
-  try{
+  try {
 
     recognition = new SpeechRecognition();
 
@@ -1236,71 +1408,112 @@ listenButton.addEventListener("click",()=>{
     recognition.continuous = false;
     recognition.interimResults = false;
 
-    recognition.onstart = ()=>{
+    recognition.onstart = () => {
+
       escuchando = true;
-      estado("Candy te está escuchando...","listening");
+
+      estado(
+        "Candy te está escuchando...",
+        "listening"
+      );
+
     };
 
-    recognition.onresult = event=>{
+    recognition.onresult = event => {
 
       const texto = event.results[0][0].transcript;
 
       messageBox.value = texto;
+
       escuchando = false;
 
       enviarMensaje(texto);
+
     };
 
-    recognition.onerror = event=>{
+    recognition.onerror = event => {
+
       escuchando = false;
-      estado("Error de micrófono: " + event.error,"idle");
+
+      estado(
+        "Error de micrófono: " + event.error,
+        "idle"
+      );
+
     };
 
-    recognition.onend = ()=>{
+    recognition.onend = () => {
+
       escuchando = false;
+      recognition = null;
+
     };
 
     recognition.start();
 
-  }catch(error){
+  } catch (error) {
 
     escuchando = false;
-    estado("No se pudo iniciar el micrófono: " + error.message,"idle");
+    recognition = null;
+
+    estado(
+      "No se pudo iniciar el micrófono: " + error.message,
+      "idle"
+    );
+
   }
+
 });
 
-/* BOTÓN DETENER */
 
-stopButton.addEventListener("click",()=>{
+/* =========================================
+   BOTÓN DETENER
+========================================= */
 
-  if(recognition){
-    try{
+stopButton.addEventListener("click", () => {
+
+  /* Invalidar cualquier respuesta pendiente */
+
+  numeroInteraccion++;
+  cancelarRespuesta = true;
+
+  if (recognition) {
+
+    try {
       recognition.stop();
-    }catch(e){}
+    } catch (error) {}
+
+    recognition = null;
+
   }
 
-  if(audioActual){
-    audioActual.pause();
-    audioActual.currentTime = 0;
-    audioActual = null;
-  }
-
-  if("speechSynthesis" in window){
+  if ("speechSynthesis" in window) {
     window.speechSynthesis.cancel();
   }
 
   escuchando = false;
+  procesando = false;
 
-  estado("Escucha y reproducción detenidas.","idle");
+  sendButton.disabled = false;
+  listenButton.disabled = false;
+
+  estado(
+    "Escucha y reproducción detenidas.",
+    "idle"
+  );
+
 });
 
-/* MENÚ LATERAL */
 
-document.querySelectorAll(".nav button").forEach(button=>{
+/* =========================================
+   MENÚ LATERAL
+========================================= */
 
-  button.addEventListener("click",()=>{
+document.querySelectorAll(".nav button").forEach(button => {
 
-    document.querySelectorAll(".nav button").forEach(b=>{
+  button.addEventListener("click", () => {
+
+    document.querySelectorAll(".nav button").forEach(b => {
       b.classList.remove("active");
     });
 
@@ -1308,31 +1521,80 @@ document.querySelectorAll(".nav button").forEach(button=>{
 
     const section = button.dataset.section;
 
-    if(section === "Inicio"){
-      estado("Candy está preparada.","idle");
+    if (section === "Inicio") {
+
+      estado(
+        "Candy está preparada.",
+        "idle"
+      );
+
       return;
+
     }
 
+    const mensajes = {
+      "Agenda":
+        "El módulo Agenda se conectará con Google Calendar y tus recordatorios.",
+
+      "Trabajos":
+        "El módulo Trabajos permitirá registrar clientes, direcciones, fotografías y seguimiento.",
+
+      "Presupuestos":
+        "El módulo Presupuestos permitirá calcular materiales, mano de obra, desplazamientos y beneficios.",
+
+      "Clientes":
+        "El módulo Clientes permitirá organizar fichas e historial de clientes.",
+
+      "Documentos":
+        "El módulo Documentos se conectará con tu Google Drive.",
+
+      "Configuración":
+        "Aquí incorporaremos los ajustes de voz, apariencia y conexiones.",
+
+      "Memoria":
+        "Aquí organizaremos la memoria profesional y personal de Candy."
+    };
+
+    const mensaje =
+      mensajes[section] ||
+      "Este módulo estará disponible más adelante.";
+
     estado(
-      section + " todavía no está conectado. Lo activaremos en una siguiente fase.",
+      section + " todavía no está conectado.",
       "idle"
     );
 
-    mostrar(
-      "Candy",
-      section + " estará disponible cuando conectemos este módulo."
-    );
+    mostrar("Candy", mensaje);
+
   });
+
 });
 
-/* COMPROBAR IMAGEN ORIGINAL */
+
+/* =========================================
+   COMPROBAR ROSTRO ORIGINAL
+========================================= */
 
 const face = document.getElementById("candyFace");
 
-face.addEventListener("error",()=>{
+face.addEventListener("error", () => {
+
   face.style.display = "none";
-  document.getElementById("faceFallback").classList.add("show");
+
+  document.getElementById("faceFallback")
+    .classList.add("show");
+
 });
+
+
+/* =========================================
+   INICIO
+========================================= */
+
+estado(
+  "Introduce tu contraseña para conectar con Candy.",
+  "idle"
+);
 
 </script>
 
