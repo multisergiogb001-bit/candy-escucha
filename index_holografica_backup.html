@@ -1,0 +1,302 @@
+
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#050d18">
+<title>CANDY | Asistente personal</title>
+<style>
+:root{
+  --bg:#050d18;--panel:rgba(8,25,43,.82);--line:rgba(49,205,255,.35);
+  --cyan:#45ddff;--text:#e9faff;--muted:#8ba9bb;
+  --glow:0 0 22px rgba(38,190,255,.22);
+}
+*{box-sizing:border-box}
+html{min-height:100%;background:var(--bg)}
+body{margin:0;min-height:100vh;color:var(--text);font-family:Arial,Helvetica,sans-serif;
+background:radial-gradient(ellipse at 50% 42%,#10304a 0%,#071726 42%,#030811 100%);overflow-x:hidden}
+body:before{content:"";position:fixed;inset:0;pointer-events:none;opacity:.22;
+background-image:linear-gradient(rgba(65,191,235,.09) 1px,transparent 1px),linear-gradient(90deg,rgba(65,191,235,.09) 1px,transparent 1px);
+background-size:42px 42px;mask-image:linear-gradient(to bottom,black,transparent 90%)}
+button,input,textarea{font:inherit}
+button{cursor:pointer}
+.shell{position:relative;z-index:1;max-width:1600px;margin:auto;padding:18px 22px 22px}
+.topbar{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:4px 5px 17px;border-bottom:1px solid var(--line)}
+.brand{display:flex;align-items:center;gap:13px}
+.brand-mark{width:38px;height:38px;border:1px solid var(--cyan);border-radius:50%;display:grid;place-items:center;color:var(--cyan);box-shadow:var(--glow);font-size:20px}
+.brand h1{margin:0;letter-spacing:7px;font-size:25px;color:var(--cyan);text-shadow:0 0 15px #159dcc}
+.brand p{margin:4px 0 0;color:var(--muted);font-size:11px;letter-spacing:1.4px}
+.top-status{display:flex;align-items:center;gap:9px;color:#a9d6e7;font-size:12px}
+.dot{width:8px;height:8px;border-radius:50%;background:#46e7b2;box-shadow:0 0 12px #46e7b2}
+.dashboard{display:grid;grid-template-columns:205px minmax(320px,1fr) 260px;gap:18px;padding-top:18px;min-height:calc(100vh - 100px)}
+.panel{background:linear-gradient(145deg,rgba(12,35,55,.88),rgba(5,18,31,.8));border:1px solid var(--line);border-radius:15px;box-shadow:var(--glow);backdrop-filter:blur(9px)}
+.left-panel{padding:16px 12px}
+.section-label{font-size:10px;letter-spacing:2px;color:#6daec8;margin:2px 8px 14px;text-transform:uppercase}
+.nav{display:grid;gap:7px}
+.nav button{width:100%;text-align:left;padding:12px 11px;border:1px solid transparent;border-radius:9px;background:transparent;color:#bad5e2;font-size:13px;transition:.2s}
+.nav button:hover,.nav button.active{background:rgba(24,133,179,.18);border-color:rgba(69,221,255,.35);color:#fff}
+.nav .ico{display:inline-block;width:25px;color:var(--cyan);font-size:15px}
+.left-note{margin:26px 8px 0;padding-top:15px;border-top:1px solid rgba(69,221,255,.16);font-size:11px;line-height:1.6;color:var(--muted)}
+.center{display:flex;flex-direction:column;align-items:center;min-width:0;padding:8px 10px 14px}
+.greeting{text-align:center;margin:5px 0 7px}
+.greeting h2{margin:0;color:#e9fbff;font-size:clamp(19px,2.2vw,27px);font-weight:400;letter-spacing:1px}
+.greeting p{margin:7px 0 0;color:#9bbdce;font-size:12px}
+.avatar-stage{position:relative;width:min(100%,520px);height:clamp(330px,47vh,475px);display:grid;place-items:center;margin:3px auto 4px}
+.ring{position:absolute;border:1px solid rgba(61,211,255,.42);border-radius:50%;aspect-ratio:1;left:50%;top:50%;transform:translate(-50%,-50%);pointer-events:none}
+.ring.one{width:min(76%,360px);box-shadow:0 0 22px rgba(31,173,228,.14),inset 0 0 20px rgba(31,173,228,.08);animation:rotate 24s linear infinite}
+.ring.two{width:min(88%,420px);border-style:dashed;opacity:.65;animation:rotateback 38s linear infinite}
+.ring.three{width:min(98%,470px);border-color:rgba(34,145,202,.28);border-style:dotted;animation:rotate 55s linear infinite}
+.ring:after{content:"";position:absolute;width:7px;height:7px;border-radius:50%;background:var(--cyan);box-shadow:0 0 12px var(--cyan);top:8%;left:50%}
+@keyframes rotate{to{transform:translate(-50%,-50%) rotate(360deg)}}
+@keyframes rotateback{to{transform:translate(-50%,-50%) rotate(-360deg)}}
+.face-frame{position:relative;width:min(57%,270px);height:88%;max-height:405px;border-radius:48% 48% 43% 43%;overflow:hidden;border:1px solid rgba(82,222,255,.72);box-shadow:0 0 28px rgba(31,176,232,.3),0 0 70px rgba(20,124,184,.16);background:#071a2b}
+.face-frame:after{content:"";position:absolute;inset:0;background:linear-gradient(180deg,rgba(37,185,233,.06),transparent 45%,rgba(4,14,26,.24));pointer-events:none}
+.face-frame img{width:100%;height:100%;display:block;object-fit:cover;object-position:center 20%}
+.face-fallback{display:none;position:absolute;inset:0;align-items:center;justify-content:center;text-align:center;padding:20px;color:#a9d9e9;font-size:12px;line-height:1.5;background:radial-gradient(circle,#16415c,#071a2b)}
+.face-fallback.show{display:flex}
+.core-caption{color:#74cbe6;font-size:10px;letter-spacing:3px;margin:3px 0 13px}
+.wave{height:27px;display:flex;align-items:center;justify-content:center;gap:4px;margin:0 0 12px}
+.wave i{display:block;width:3px;height:8px;border-radius:4px;background:#43d8ff;opacity:.8;animation:pulse 1s ease-in-out infinite}
+.wave i:nth-child(2n){animation-delay:.18s}.wave i:nth-child(3n){animation-delay:.35s}.wave i:nth-child(4n){animation-delay:.5s}
+@keyframes pulse{0%,100%{height:5px;opacity:.35}50%{height:23px;opacity:1}}
+.chat-panel{width:min(100%,650px);padding:13px}
+.conversation{height:115px;overflow:auto;padding:7px 9px;border-bottom:1px solid rgba(69,221,255,.16);font-size:13px;line-height:1.5}
+.message{margin:7px 0;overflow-wrap:anywhere}.message.user{color:#c2eaff}.message.candy{color:#57dcff}
+.composer{display:flex;gap:9px;align-items:flex-end;padding-top:10px}
+textarea{flex:1;min-width:0;min-height:46px;max-height:110px;resize:vertical;padding:12px;border:1px solid rgba(69,221,255,.27);border-radius:9px;background:#061727;color:white;outline:none}
+textarea:focus,input:focus{border-color:var(--cyan);box-shadow:0 0 0 2px rgba(69,221,255,.1)}
+.action{border:1px solid rgba(69,221,255,.45);border-radius:9px;background:linear-gradient(135deg,#087da5,#075174);color:white;padding:12px 15px;font-weight:bold;font-size:12px;white-space:nowrap}
+.action:hover{filter:brightness(1.2)}.action.secondary{background:#18344a}.action:disabled{opacity:.5;cursor:wait}
+.voice-row{display:flex;justify-content:center;gap:9px;flex-wrap:wrap;margin-top:10px}
+.voice-row .action{min-width:130px}
+.right-panel{display:flex;flex-direction:column;gap:13px}
+.widget{padding:15px}
+.widget h3{margin:0 0 12px;color:#72dfff;font-size:11px;letter-spacing:2px;font-weight:600}
+.status-line{display:flex;align-items:center;gap:9px;color:#d8f5ff;font-size:13px}
+.status-light{width:9px;height:9px;border-radius:50%;background:#49e4b0;box-shadow:0 0 12px #49e4b0}
+#status{margin-top:10px;color:#9bbdce;font-size:12px;line-height:1.5;overflow-wrap:anywhere}
+.mini-wave{display:flex;align-items:center;gap:3px;height:26px;margin-top:10px}
+.mini-wave i{height:5px;width:3px;background:var(--cyan);border-radius:4px;opacity:.8}
+.stats{display:grid;grid-template-columns:1fr;gap:9px}
+.stat{padding:10px;border:1px solid rgba(69,221,255,.16);border-radius:9px;background:rgba(6,24,40,.6)}
+.stat strong{display:block;color:#fff;font-size:20px;font-weight:400}.stat span{font-size:10px;color:#8daebe;letter-spacing:1px}
+.reminder{font-size:12px;color:#9bbdce;line-height:1.5}
+.login{position:fixed;z-index:10;inset:0;display:grid;place-items:center;padding:20px;background:rgba(2,8,16,.88);backdrop-filter:blur(8px)}
+.login-card{width:min(100%,390px);padding:25px;border:1px solid var(--line);border-radius:16px;background:#0a2032;box-shadow:0 0 35px rgba(35,180,230,.2);text-align:center}
+.login-card h2{margin:0 0 8px;color:var(--cyan);letter-spacing:5px}
+.login-card p{color:#9bbdce;font-size:12px;line-height:1.5}
+.login-card input{width:100%;padding:13px;border:1px solid #28546c;border-radius:9px;background:#061727;color:white;margin:10px 0}
+.login-card button{width:100%}
+.hidden{display:none!important}
+.footer{margin-top:13px;text-align:center;color:#547b91;font-size:10px;letter-spacing:1px}
+@media(max-width:1050px){.dashboard{grid-template-columns:175px minmax(280px,1fr)}.right-panel{grid-column:1/-1;display:grid;grid-template-columns:repeat(3,minmax(0,1fr))}.stats{grid-template-columns:repeat(3,1fr)}}
+@media(max-width:700px){
+.shell{padding:12px 10px}.topbar{padding-bottom:12px}.brand h1{font-size:21px}.top-status{font-size:10px}
+.dashboard{display:flex;flex-direction:column;gap:12px;padding-top:12px}
+.left-panel{padding:10px}.section-label{margin-bottom:8px}
+.nav{display:flex;overflow-x:auto;gap:5px;padding-bottom:3px}.nav button{white-space:nowrap;width:auto;padding:9px 10px;font-size:11px}
+.nav .ico{width:19px}.left-note{display:none}
+.center{padding:5px 0}.avatar-stage{height:340px}.face-frame{width:min(58%,230px);height:88%}
+.ring.one{width:75%}.ring.two{width:88%}.ring.three{width:98%}
+.right-panel{display:grid;grid-template-columns:1fr 1fr}.right-panel .widget:first-child{grid-column:1/-1}
+.stats{grid-template-columns:repeat(3,1fr)}.stat{padding:8px 5px}.stat strong{font-size:17px}.stat span{font-size:9px}
+.conversation{height:100px}.composer{align-items:stretch}.action{padding:11px 12px}.voice-row .action{flex:1}
+}
+@media(max-width:390px){.right-panel{grid-template-columns:1fr}.right-panel .widget:first-child{grid-column:auto}.composer{flex-direction:column}.composer .action{width:100%}}
+</style>
+</head>
+<body>
+<div class="shell">
+<header class="topbar">
+<div class="brand"><div class="brand-mark">✧</div><div><h1>CANDY</h1><p>TU ASISTENTE PERSONAL INTELIGENTE</p></div></div>
+<div class="top-status"><span class="dot"></span><span>SISTEMA DISPONIBLE</span></div>
+</header>
+
+<div class="dashboard">
+<aside class="panel left-panel">
+<div class="section-label">Panel de control</div>
+<nav class="nav">
+<button class="active" data-section="Inicio"><span class="ico">⌂</span>Inicio</button>
+<button data-section="Agenda"><span class="ico">◷</span>Agenda</button>
+<button data-section="Trabajos"><span class="ico">▣</span>Trabajos</button>
+<button data-section="Presupuestos"><span class="ico">€</span>Presupuestos</button>
+<button data-section="Clientes"><span class="ico">♙</span>Clientes</button>
+<button data-section="Documentos"><span class="ico">▤</span>Documentos</button>
+<button data-section="Configuración"><span class="ico">⚙</span>Configuración</button>
+<button data-section="Memoria"><span class="ico">◈</span>Memoria</button>
+</nav>
+<div class="left-note">Interfaz principal de Candy.<br>Los módulos de gestión se conectarán progresivamente.</div>
+</aside>
+
+<main class="center">
+<div class="greeting"><h2>Hola. Estoy aquí para ayudarte.</h2><p>Tu asistente, siempre a un mensaje de distancia.</p></div>
+<div class="avatar-stage">
+<div class="ring one"></div><div class="ring two"></div><div class="ring three"></div>
+<div class="face-frame">
+<img id="candyFace" src="https://multisergiogb001-bit.github.io/candy-escucha/candy_rostro_original.jpg" alt="Rostro original de Candy">
+<div id="faceFallback" class="face-fallback">No se ha podido cargar el rostro.<br>Comprueba que candy_rostro_original.jpg<br>está publicado en GitHub.</div>
+</div>
+</div>
+<div class="core-caption">CANDY · INTERFAZ HOLOGRÁFICA</div>
+<div class="wave" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
+
+<section class="panel chat-panel">
+<div id="conversation" class="conversation"><div class="message candy">Candy: Hola. Estoy preparada para escucharte.</div></div>
+<div class="composer">
+<textarea id="message" placeholder="Escribe tu mensaje o habla conmigo..."></textarea>
+<button id="send" class="action">ENVIAR</button>
+</div>
+<div class="voice-row">
+<button id="listen" class="action">🎙 HABLAR CON CANDY</button>
+<button id="stop" class="action secondary">DETENER</button>
+</div>
+</section>
+<div class="footer">CONEXIÓN SEGURA · CANDY PERSONAL AI</div>
+</main>
+
+<aside class="right-panel">
+<section class="panel widget">
+<h3>ESTADO DEL SISTEMA</h3>
+<div class="status-line"><span class="status-light"></span><span>Lista para ayudarte</span></div>
+<div id="status">Introduce tu contraseña para conectar con Candy.</div>
+<div class="mini-wave"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
+</section>
+<section class="panel widget">
+<h3>MI ACTIVIDAD</h3>
+<div class="stats">
+<div class="stat"><strong>—</strong><span>TRABAJOS</span></div>
+<div class="stat"><strong>—</strong><span>PRESUPUESTOS</span></div>
+<div class="stat"><strong>—</strong><span>CITAS</span></div>
+</div>
+</section>
+<section class="panel widget">
+<h3>RECORDATORIOS</h3>
+<div class="reminder">Todavía no hay recordatorios conectados.</div>
+</section>
+</aside>
+</div>
+</div>
+
+<div id="login" class="login">
+<div class="login-card">
+<h2>CANDY</h2>
+<p>Introduce tu contraseña de acceso para conectar con tu asistente.</p>
+<input id="password" type="password" placeholder="Contraseña de Candy" autocomplete="current-password">
+<button id="unlock" class="action">CONECTAR CON CANDY</button>
+<p id="loginError" aria-live="polite"></p>
+</div>
+</div>
+
+<script>
+const WORKER_URL = "https://candy-puente.multisergiogb001.workers.dev";
+const statusBox = document.getElementById("status");
+const conversation = document.getElementById("conversation");
+const messageBox = document.getElementById("message");
+const passwordBox = document.getElementById("password");
+const sendButton = document.getElementById("send");
+const listenButton = document.getElementById("listen");
+const stopButton = document.getElementById("stop");
+const loginBox = document.getElementById("login");
+const loginError = document.getElementById("loginError");
+let recognition = null, escuchando = false, procesando = false, candyPassword = "";
+
+function estado(texto){statusBox.textContent=texto;}
+function mostrar(quien,texto){
+const div=document.createElement("div");
+div.className="message "+(quien==="Tú"?"user":"candy");
+div.textContent=quien+": "+texto;
+conversation.appendChild(div);conversation.scrollTop=conversation.scrollHeight;
+}
+async function llamarCandy(action,message){
+if(!candyPassword)throw new Error("Conecta primero con Candy introduciendo tu contraseña.");
+const response=await fetch(WORKER_URL,{
+method:"POST",headers:{"Content-Type":"application/json"},
+body:JSON.stringify({password:candyPassword,action:action,message:message})
+});
+let result;
+try{result=await response.json();}catch(e){throw new Error("El puente no ha devuelto una respuesta válida.");}
+if(!response.ok||result.error)throw new Error(result.error||"Error de conexión.");
+return result;
+}
+async function conectar(){
+const candidate=passwordBox.value.trim();
+if(!candidate){loginError.textContent="Escribe tu contraseña.";passwordBox.focus();return;}
+candyPassword=candidate;
+document.getElementById("unlock").disabled=true;
+loginError.textContent="Comprobando conexión...";
+try{
+const result=await llamarCandy("chat","Responde brevemente: conexión de Candy comprobada.");
+if(!result.text)throw new Error("No se recibió respuesta de Candy.");
+loginBox.classList.add("hidden");
+estado("Conexión establecida. Candy está preparada.");
+mostrar("Candy","Conexión establecida. Ya podemos hablar.");
+}catch(error){
+candyPassword="";
+loginError.textContent=error.message;
+}finally{document.getElementById("unlock").disabled=false;}
+}
+async function enviarMensaje(texto){
+if(procesando)return;
+texto=(texto||"").trim();if(!texto)return;
+if(!candyPassword){loginBox.classList.remove("hidden");estado("Conecta primero con tu contraseña.");return;}
+procesando=true;sendButton.disabled=true;listenButton.disabled=true;
+mostrar("Tú",texto);estado("Candy está pensando...");
+try{
+const respuesta=await llamarCandy("chat",texto);
+if(!respuesta.text)throw new Error("Candy no ha devuelto texto.");
+mostrar("Candy",respuesta.text);estado("Respuesta recibida. Preparando la voz...");
+try{
+const voz=await llamarCandy("voice",respuesta.text);
+if(!voz.audio)throw new Error("No se ha recibido el audio.");
+const audio=new Audio("data:audio/mpeg;base64,"+voz.audio);
+estado("Candy está hablando...");
+audio.onended=()=>estado("Candy está preparada.");
+await audio.play();
+}catch(voiceError){estado("Candy ha respondido por texto. Voz: "+voiceError.message);}
+}catch(error){estado("Aviso: "+error.message);}
+finally{procesando=false;sendButton.disabled=false;listenButton.disabled=false;}
+}
+document.getElementById("unlock").addEventListener("click",conectar);
+passwordBox.addEventListener("keydown",e=>{if(e.key==="Enter")conectar();});
+sendButton.addEventListener("click",()=>{
+const texto=messageBox.value.trim();if(!texto)return;messageBox.value="";enviarMensaje(texto);
+});
+messageBox.addEventListener("keydown",e=>{
+if(e.key==="Enter"&&!e.shiftKey){e.preventDefault();sendButton.click();}
+});
+listenButton.addEventListener("click",()=>{
+const SpeechRecognition=window.SpeechRecognition||window.webkitSpeechRecognition;
+if(!SpeechRecognition){estado("Este navegador no admite reconocimiento de voz.");return;}
+if(!candyPassword){loginBox.classList.remove("hidden");estado("Conecta primero con tu contraseña.");return;}
+if(escuchando||procesando)return;
+try{
+recognition=new SpeechRecognition();recognition.lang="es-ES";recognition.continuous=false;recognition.interimResults=false;
+recognition.onstart=()=>{escuchando=true;estado("Candy te está escuchando...");};
+recognition.onresult=event=>{const texto=event.results[0][0].transcript;messageBox.value=texto;escuchando=false;enviarMensaje(texto);};
+recognition.onerror=event=>{escuchando=false;estado("Error de micrófono: "+event.error);};
+recognition.onend=()=>{escuchando=false;};
+recognition.start();
+}catch(error){escuchando=false;estado("No se pudo iniciar el micrófono: "+error.message);}
+});
+stopButton.addEventListener("click",()=>{
+if(recognition){try{recognition.stop();}catch(e){}}
+escuchando=false;estado("Escucha detenida.");
+});
+document.querySelectorAll(".nav button").forEach(button=>{
+button.addEventListener("click",()=>{
+document.querySelectorAll(".nav button").forEach(b=>b.classList.remove("active"));
+button.classList.add("active");
+const section=button.dataset.section;
+if(section==="Inicio"){estado("Candy está preparada.");return;}
+estado(section+" todavía no está conectado. Lo activaremos en una siguiente fase.");
+mostrar("Candy",section+" estará disponible cuando conectemos este módulo.");
+});
+});
+const face=document.getElementById("candyFace");
+face.addEventListener("error",()=>{
+face.style.display="none";document.getElementById("faceFallback").classList.add("show");
+});
+</script>
+</body>
+</html>
