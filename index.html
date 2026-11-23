@@ -5,172 +5,205 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="theme-color" content="#071321">
-<title>Candy - Escucha</title>
+<title>CANDY | Asistente personal</title>
 <style>
-* { box-sizing: border-box; }
-body {
-  margin: 0;
-  padding: 24px 16px;
-  background: #071321;
-  color: #eafaff;
-  font-family: Arial, sans-serif;
-  text-align: center;
-}
-main {
-  max-width: 520px;
-  margin: 35px auto;
-  padding: 25px;
-  border: 1px solid #164b66;
-  border-radius: 20px;
-  background: #0d2032;
-}
-h1 {
-  color: #42d9ff;
-  letter-spacing: 5px;
-  font-size: 32px;
-}
-p { color: #b8cbd8; line-height: 1.5; }
-.status {
-  margin: 22px 0;
-  padding: 15px;
-  border-radius: 12px;
-  background: #102b40;
-  color: #42d9ff;
-}
-button {
-  display: block;
-  width: 100%;
-  padding: 16px;
-  margin: 12px 0;
-  border: 0;
-  border-radius: 12px;
-  background: #087fa5;
-  color: white;
-  font-size: 16px;
-  font-weight: bold;
-}
-button.stop { background: #35495b; }
-#transcript {
-  min-height: 100px;
-  padding: 16px;
-  margin-top: 20px;
-  border: 1px solid #24516a;
-  border-radius: 12px;
-  text-align: left;
-  overflow-wrap: anywhere;
-  color: white;
-}
-.small { font-size: 12px; color: #8fa8ba; }
+*{box-sizing:border-box}
+body{margin:0;padding:20px 14px;background:#071321;color:#eafaff;font-family:Arial,sans-serif}
+main{max-width:600px;margin:20px auto;padding:25px;border:1px solid #164b66;border-radius:22px;background:#0d2032}
+h1{text-align:center;color:#42d9ff;letter-spacing:7px;font-size:38px}
+.sub{text-align:center;color:#b8cbd8}
+.status{padding:14px;margin:20px 0;background:#102b40;border-radius:12px;text-align:center;color:#42d9ff}
+input,textarea{width:100%;padding:14px;margin:8px 0;background:#071b2c;border:1px solid #24516a;border-radius:10px;color:white;font-size:16px}
+textarea{min-height:85px;resize:vertical}
+button{width:100%;padding:15px;margin:8px 0;border:0;border-radius:11px;background:#087fa5;color:white;font-size:15px;font-weight:bold}
+button.secondary{background:#35495b}
+button:disabled{opacity:.5}
+#conversation{min-height:180px;max-height:400px;overflow:auto;padding:14px;background:#081a29;border:1px solid #24516a;border-radius:12px}
+.message{margin:12px 0;line-height:1.5;overflow-wrap:anywhere}
+.user{color:#b9eaff}
+.candy{color:#42d9ff}
+small{color:#8fa8ba}
 </style>
 </head>
 <body>
 <main>
-  <h1>CANDY</h1>
-  <p>Módulo independiente de escucha</p>
+<h1>CANDY</h1>
+<p class="sub">Tu asistente personal inteligente</p>
 
-  <div class="status" id="status">
-    Preparada para comprobar el micrófono
-  </div>
+<div class="status" id="status">Candy está preparada</div>
 
-  <button id="check">1. COMPROBAR MICRÓFONO</button>
-  <button id="start">2. INICIAR ESCUCHA</button>
-  <button id="stop" class="stop">DETENER ESCUCHA</button>
+<label>Contraseña de acceso</label>
+<input id="password" type="password" placeholder="Introduce tu contraseña de Candy" autocomplete="current-password">
 
-  <div id="transcript">
-    Aquí aparecerán las palabras que Candy reconozca.
-  </div>
+<div id="conversation">
+<div class="message candy">Candy: Hola. Estoy preparada para escucharte.</div>
+</div>
 
-  <p class="small">
-    Esta página es una prueba. Todavía no está conectada
-    con Gemini ni con la voz de ElevenLabs.
-  </p>
+<textarea id="message" placeholder="Escribe aquí o habla conmigo..."></textarea>
+
+<button id="send">ENVIAR MENSAJE</button>
+<button id="listen">🎙️ HABLAR CON CANDY</button>
+<button id="stop" class="secondary">DETENER ESCUCHA</button>
+
+<p class="sub"><small>La contraseña solo se conserva mientras esta página permanezca abierta. El micrófono se activa cuando tú lo solicitas.</small></p>
 </main>
 
 <script>
+const WORKER_URL = "https://candy-puente.multisergiogb001.workers.dev";
+
 const statusBox = document.getElementById("status");
-const transcript = document.getElementById("transcript");
-const checkButton = document.getElementById("check");
-const startButton = document.getElementById("start");
+const conversation = document.getElementById("conversation");
+const messageBox = document.getElementById("message");
+const passwordBox = document.getElementById("password");
+const sendButton = document.getElementById("send");
+const listenButton = document.getElementById("listen");
 const stopButton = document.getElementById("stop");
 
 let recognition = null;
+let escuchando = false;
+let procesando = false;
 
-function status(message) {
-  statusBox.textContent = message;
+function estado(texto) {
+  statusBox.textContent = texto;
 }
 
-checkButton.addEventListener("click", async () => {
+function mostrar(quien, texto) {
+  const div = document.createElement("div");
+  div.className = "message " + (quien === "Tú" ? "user" : "candy");
+  div.textContent = quien + ": " + texto;
+  conversation.appendChild(div);
+  conversation.scrollTop = conversation.scrollHeight;
+}
+
+async function llamarCandy(action, message) {
+  const password = passwordBox.value.trim();
+
+  if (!password) {
+    estado("Introduce primero tu contraseña.");
+    passwordBox.focus();
+    throw new Error("Falta la contraseña de acceso.");
+  }
+
+  const response = await fetch(WORKER_URL, {
+    method: "POST",
+    headers: {"Content-Type": "application/json"},
+    body: JSON.stringify({
+      password: password,
+      action: action,
+      message: message
+    })
+  });
+
+  const result = await response.json();
+
+  if (!response.ok || result.error) {
+    throw new Error(result.error || "Error de conexión.");
+  }
+
+  return result;
+}
+
+async function enviarMensaje(texto) {
+  if (procesando) return;
+
+  texto = (texto || "").trim();
+  if (!texto) return;
+
+  procesando = true;
+  sendButton.disabled = true;
+  mostrar("Tú", texto);
+  estado("Candy está pensando...");
+
   try {
-    if (!navigator.mediaDevices ||
-        !navigator.mediaDevices.getUserMedia) {
-      status("Este navegador no permite comprobar el micrófono aquí.");
-      return;
-    }
+    const respuesta = await llamarCandy("chat", texto);
 
-    status("Solicitando acceso al micrófono...");
+    if (!respuesta.text) throw new Error("Candy no ha devuelto texto.");
 
-    const stream = await navigator.mediaDevices.getUserMedia({
-      audio: true
-    });
+    mostrar("Candy", respuesta.text);
+    estado("Candy ha respondido. Preparando su voz...");
 
-    stream.getTracks().forEach(track => track.stop());
-    status("¡Micrófono autorizado y funcionando!");
+    const voz = await llamarCandy("voice", respuesta.text);
+
+    if (!voz.audio) throw new Error("No se ha recibido el audio.");
+
+    const audio = new Audio("data:audio/mpeg;base64," + voz.audio);
+    await audio.play();
+    estado("Candy está hablando...");
+
+    audio.onended = () => estado("Candy está preparada");
+
   } catch (error) {
-    status("Error del micrófono: " + error.name);
+    estado("Aviso: " + error.message);
+  } finally {
+    procesando = false;
+    sendButton.disabled = false;
+  }
+}
+
+sendButton.addEventListener("click", () => {
+  const texto = messageBox.value.trim();
+  if (!texto) return;
+  messageBox.value = "";
+  enviarMensaje(texto);
+});
+
+messageBox.addEventListener("keydown", event => {
+  if (event.key === "Enter" && !event.shiftKey) {
+    event.preventDefault();
+    sendButton.click();
   }
 });
 
-startButton.addEventListener("click", () => {
+listenButton.addEventListener("click", () => {
   const SpeechRecognition =
-    window.SpeechRecognition ||
-    window.webkitSpeechRecognition;
+    window.SpeechRecognition || window.webkitSpeechRecognition;
 
   if (!SpeechRecognition) {
-    status("El reconocimiento de voz no está disponible en este navegador.");
+    estado("Este navegador no admite reconocimiento de voz.");
     return;
   }
+
+  if (escuchando) return;
 
   try {
     recognition = new SpeechRecognition();
     recognition.lang = "es-ES";
-    recognition.continuous = true;
-    recognition.interimResults = true;
+    recognition.continuous = false;
+    recognition.interimResults = false;
 
     recognition.onstart = () => {
-      status("Candy te está escuchando...");
+      escuchando = true;
+      estado("Candy te está escuchando...");
     };
 
-    recognition.onresult = (event) => {
-      let text = "";
-
-      for (let i = 0; i < event.results.length; i++) {
-        text += event.results[i][0].transcript + " ";
-      }
-
-      transcript.textContent = text.trim();
+    recognition.onresult = event => {
+      const texto = event.results[0][0].transcript;
+      messageBox.value = texto;
+      escuchando = false;
+      enviarMensaje(texto);
     };
 
-    recognition.onerror = (event) => {
-      status("Error de reconocimiento: " + event.error);
+    recognition.onerror = event => {
+      escuchando = false;
+      estado("Error de micrófono: " + event.error);
     };
 
     recognition.onend = () => {
-      status("La escucha se ha detenido.");
+      escuchando = false;
     };
 
     recognition.start();
+
   } catch (error) {
-    status("No se pudo iniciar: " + error.message);
+    escuchando = false;
+    estado("No se pudo iniciar el micrófono: " + error.message);
   }
 });
 
 stopButton.addEventListener("click", () => {
-  if (recognition) {
-    recognition.stop();
-    recognition = null;
-  }
-
-  status("Escucha detenida.");
+  if (recognition) recognition.stop();
+  escuchando = false;
+  estado("Escucha detenida.");
 });
 </script>
 </body>
