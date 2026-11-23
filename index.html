@@ -323,20 +323,12 @@ button{cursor:pointer}
 }
 
 @keyframes holoSweep{
-  0%,100%{
-    opacity:.12;
-    width:35%;
-  }
-  50%{
-    opacity:.85;
-    width:90%;
-  }
+  0%,100%{opacity:.12;width:35%}
+  50%{opacity:.85;width:90%}
 }
 
 @keyframes holoGlow{
-  0%,100%{
-    box-shadow:0 0 18px rgba(69,221,255,.35);
-  }
+  0%,100%{box-shadow:0 0 18px rgba(69,221,255,.35)}
   50%{
     box-shadow:
       0 0 35px rgba(69,221,255,.75),
@@ -689,7 +681,6 @@ textarea:focus,input:focus{
 
 /* ESTADOS DINAMICOS DE CANDY */
 
-/* ESCUCHANDO */
 body[data-candy-state="listening"] .ring{
   filter:drop-shadow(0 0 12px #45ddff);
   animation-duration:3s;
@@ -701,7 +692,6 @@ body[data-candy-state="listening"] .face-frame{
     0 0 65px rgba(31,176,232,.5);
 }
 
-/* PENSANDO */
 body[data-candy-state="thinking"] .avatar-stage:before{
   animation-duration:8s;
   opacity:.9;
@@ -712,7 +702,6 @@ body[data-candy-state="thinking"] .avatar-stage:after{
   opacity:.9;
 }
 
-/* HABLANDO */
 body[data-candy-state="speaking"] .face-frame{
   animation:
     candyFloat 2s ease-in-out infinite,
@@ -968,6 +957,9 @@ let escuchando = false;
 let procesando = false;
 let candyPassword = "";
 
+let elevenLabsNoDisponible = false;
+let audioActual = null;
+
 /* CONTROL DE ESTADOS VISUALES */
 
 function estado(texto, estadoCandy = "idle"){
@@ -982,6 +974,8 @@ function mostrar(quien,texto){
   conversation.appendChild(div);
   conversation.scrollTop = conversation.scrollHeight;
 }
+
+/* CONEXIÓN CON EL PUENTE */
 
 async function llamarCandy(action,message){
   if(!candyPassword){
@@ -1012,6 +1006,48 @@ async function llamarCandy(action,message){
 
   return result;
 }
+
+/* VOZ ALTERNATIVA GRATUITA DEL NAVEGADOR */
+
+function hablarConNavegador(texto){
+
+  if(!("speechSynthesis" in window)){
+    estado(
+      "Candy ha respondido por texto. Este navegador no dispone de voz alternativa.",
+      "idle"
+    );
+    return;
+  }
+
+  window.speechSynthesis.cancel();
+
+  const vozAlternativa = new SpeechSynthesisUtterance(texto);
+
+  vozAlternativa.lang = "es-ES";
+  vozAlternativa.rate = 1;
+  vozAlternativa.pitch = 1;
+
+  vozAlternativa.onstart = ()=>{
+    estado("Candy está hablando con la voz alternativa...","speaking");
+  };
+
+  vozAlternativa.onend = ()=>{
+    estado("Candy está preparada.","idle");
+  };
+
+  vozAlternativa.onerror = ()=>{
+    estado(
+      "Candy ha respondido por texto. La voz alternativa no está disponible.",
+      "idle"
+    );
+  };
+
+  estado("Preparando voz alternativa...","thinking");
+
+  window.speechSynthesis.speak(vozAlternativa);
+}
+
+/* CONECTAR CON CANDY */
 
 async function conectar(){
   const candidate = passwordBox.value.trim();
@@ -1050,7 +1086,10 @@ async function conectar(){
   }
 }
 
+/* ENVIAR MENSAJE Y RECIBIR RESPUESTA */
+
 async function enviarMensaje(texto){
+
   if(procesando)return;
 
   texto = (texto || "").trim();
@@ -1070,6 +1109,9 @@ async function enviarMensaje(texto){
   estado("Candy está pensando...","thinking");
 
   try{
+
+    /* PRIMER PASO: RESPUESTA DE GEMINI */
+
     const respuesta = await llamarCandy("chat",texto);
 
     if(!respuesta.text){
@@ -1077,45 +1119,70 @@ async function enviarMensaje(texto){
     }
 
     mostrar("Candy",respuesta.text);
-    estado("Respuesta recibida. Preparando la voz...","thinking");
 
-    try{
-      const voz = await llamarCandy("voice",respuesta.text);
+    /* SEGUNDO PASO: ELEGIR LA VOZ */
 
-      if(!voz.audio){
-        throw new Error("No se ha recibido el audio.");
+    if(elevenLabsNoDisponible){
+
+      hablarConNavegador(respuesta.text);
+
+    }else{
+
+      try{
+
+        const voz = await llamarCandy("voice",respuesta.text);
+
+        if(!voz.audio){
+          throw new Error("No se ha recibido el audio.");
+        }
+
+        audioActual = new Audio(
+          "data:audio/mpeg;base64," + voz.audio
+        );
+
+        estado("Candy está hablando...","speaking");
+
+        audioActual.onended = ()=>{
+          audioActual = null;
+          estado("Candy está preparada.","idle");
+        };
+
+        audioActual.onerror = ()=>{
+          audioActual = null;
+          estado("No se pudo reproducir el audio.","idle");
+        };
+
+        await audioActual.play();
+
+      }catch(voiceError){
+
+        const mensajeError = voiceError.message || "";
+
+        if(
+          mensajeError.includes("quota_exceeded") ||
+          mensajeError.includes("credits") ||
+          mensajeError.includes("401")
+        ){
+          elevenLabsNoDisponible = true;
+        }
+
+        hablarConNavegador(respuesta.text);
       }
-
-      const audio = new Audio("data:audio/mpeg;base64," + voz.audio);
-
-      estado("Candy está hablando...","speaking");
-
-      audio.onended = () => {
-        estado("Candy está preparada.","idle");
-      };
-
-      audio.onerror = () => {
-        estado("Candy ha terminado la respuesta de voz.","idle");
-      };
-
-      await audio.play();
-
-    }catch(voiceError){
-      estado(
-        "Candy ha respondido por texto. Voz: " + voiceError.message,
-        "idle"
-      );
     }
 
   }catch(error){
+
     estado("Aviso: " + error.message,"idle");
 
   }finally{
+
     procesando = false;
     sendButton.disabled = false;
     listenButton.disabled = false;
   }
 }
+
+/* BOTÓN DE CONEXIÓN */
 
 document.getElementById("unlock").addEventListener("click",conectar);
 
@@ -1123,8 +1190,11 @@ passwordBox.addEventListener("keydown",e=>{
   if(e.key === "Enter")conectar();
 });
 
+/* BOTÓN ENVIAR */
+
 sendButton.addEventListener("click",()=>{
   const texto = messageBox.value.trim();
+
   if(!texto)return;
 
   messageBox.value = "";
@@ -1138,7 +1208,10 @@ messageBox.addEventListener("keydown",e=>{
   }
 });
 
+/* MICRÓFONO */
+
 listenButton.addEventListener("click",()=>{
+
   const SpeechRecognition =
     window.SpeechRecognition || window.webkitSpeechRecognition;
 
@@ -1156,7 +1229,9 @@ listenButton.addEventListener("click",()=>{
   if(escuchando || procesando)return;
 
   try{
+
     recognition = new SpeechRecognition();
+
     recognition.lang = "es-ES";
     recognition.continuous = false;
     recognition.interimResults = false;
@@ -1167,9 +1242,12 @@ listenButton.addEventListener("click",()=>{
     };
 
     recognition.onresult = event=>{
+
       const texto = event.results[0][0].transcript;
+
       messageBox.value = texto;
       escuchando = false;
+
       enviarMensaje(texto);
     };
 
@@ -1185,24 +1263,43 @@ listenButton.addEventListener("click",()=>{
     recognition.start();
 
   }catch(error){
+
     escuchando = false;
     estado("No se pudo iniciar el micrófono: " + error.message,"idle");
   }
 });
 
+/* BOTÓN DETENER */
+
 stopButton.addEventListener("click",()=>{
+
   if(recognition){
     try{
       recognition.stop();
     }catch(e){}
   }
 
+  if(audioActual){
+    audioActual.pause();
+    audioActual.currentTime = 0;
+    audioActual = null;
+  }
+
+  if("speechSynthesis" in window){
+    window.speechSynthesis.cancel();
+  }
+
   escuchando = false;
-  estado("Escucha detenida.","idle");
+
+  estado("Escucha y reproducción detenidas.","idle");
 });
 
+/* MENÚ LATERAL */
+
 document.querySelectorAll(".nav button").forEach(button=>{
+
   button.addEventListener("click",()=>{
+
     document.querySelectorAll(".nav button").forEach(b=>{
       b.classList.remove("active");
     });
@@ -1221,9 +1318,14 @@ document.querySelectorAll(".nav button").forEach(button=>{
       "idle"
     );
 
-    mostrar("Candy",section + " estará disponible cuando conectemos este módulo.");
+    mostrar(
+      "Candy",
+      section + " estará disponible cuando conectemos este módulo."
+    );
   });
 });
+
+/* COMPROBAR IMAGEN ORIGINAL */
 
 const face = document.getElementById("candyFace");
 
@@ -1231,6 +1333,7 @@ face.addEventListener("error",()=>{
   face.style.display = "none";
   document.getElementById("faceFallback").classList.add("show");
 });
+
 </script>
 
 </body>
