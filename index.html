@@ -201,6 +201,8 @@ button{cursor:pointer}
   display:grid;
   place-items:center;
   margin:3px auto 4px;
+  isolation:isolate;
+  perspective:1000px;
 }
 
 .ring{
@@ -216,7 +218,11 @@ button{cursor:pointer}
 
 .ring.one{
   width:min(76%,360px);
-  box-shadow:0 0 22px rgba(31,173,228,.14),inset 0 0 20px rgba(31,173,228,.08);
+  box-shadow:
+    0 0 18px rgba(69,221,255,.25),
+    inset 0 0 20px rgba(69,221,255,.12);
+  border-width:2px;
+  border-color:rgba(69,221,255,.65);
   animation:rotate 24s linear infinite;
 }
 
@@ -224,6 +230,8 @@ button{cursor:pointer}
   width:min(88%,420px);
   border-style:dashed;
   opacity:.65;
+  border-color:rgba(69,221,255,.5);
+  filter:drop-shadow(0 0 5px rgba(69,221,255,.5));
   animation:rotateback 38s linear infinite;
 }
 
@@ -231,6 +239,7 @@ button{cursor:pointer}
   width:min(98%,470px);
   border-color:rgba(34,145,202,.28);
   border-style:dotted;
+  box-shadow:0 0 24px rgba(69,221,255,.12);
   animation:rotate 55s linear infinite;
 }
 
@@ -253,15 +262,8 @@ button{cursor:pointer}
 @keyframes rotateback{
   to{transform:translate(-50%,-50%) rotate(-360deg)}
 }
-  
-/* =====================================
-   CANDY - SISTEMA HOLOGRAFICO CINEMATICO
-   ===================================== */
 
-.avatar-stage{
-  isolation:isolate;
-  perspective:1000px;
-}
+/* HOLOGRAMA CINEMATOGRAFICO */
 
 .avatar-stage:before{
   content:"";
@@ -316,39 +318,6 @@ button{cursor:pointer}
   opacity:.55;
 }
 
-.ring.one{
-  border-width:2px;
-  border-color:rgba(69,221,255,.65);
-  box-shadow:
-    0 0 18px rgba(69,221,255,.25),
-    inset 0 0 20px rgba(69,221,255,.12);
-}
-
-.ring.two{
-  border-color:rgba(69,221,255,.5);
-  filter:drop-shadow(0 0 5px rgba(69,221,255,.5));
-}
-
-.ring.three{
-  box-shadow:0 0 24px rgba(69,221,255,.12);
-}
-
-.face-frame{
-  border:2px solid rgba(82,222,255,.85);
-  box-shadow:
-    0 0 15px rgba(69,221,255,.65),
-    0 0 40px rgba(31,176,232,.4),
-    0 0 90px rgba(20,124,184,.25),
-    inset 0 0 25px rgba(69,221,255,.15);
-}
-
-.face-frame img{
-  filter:
-    contrast(1.04)
-    saturate(1.08)
-    drop-shadow(0 0 8px rgba(69,221,255,.15));
-}
-
 @keyframes holoOrbit{
   to{transform:rotate(360deg)}
 }
@@ -375,13 +344,6 @@ button{cursor:pointer}
   }
 }
 
-.face-frame{
-  animation:
-    candyFloat 4s ease-in-out infinite,
-    holoGlow 3s ease-in-out infinite;
-}
-
-
 /* ROSTRO ORIGINAL DE CANDY */
 
 .face-frame{
@@ -392,13 +354,17 @@ button{cursor:pointer}
   max-height:405px;
   border-radius:48% 48% 43% 43%;
   overflow:hidden;
-  border:1px solid rgba(82,222,255,.72);
+  border:2px solid rgba(82,222,255,.85);
   box-shadow:
-    0 0 28px rgba(31,176,232,.3),
-    0 0 70px rgba(20,124,184,.16);
+    0 0 15px rgba(69,221,255,.65),
+    0 0 40px rgba(31,176,232,.4),
+    0 0 90px rgba(20,124,184,.25),
+    inset 0 0 25px rgba(69,221,255,.15);
   background:#071a2b;
   transform-origin:center center;
-  animation:candyFloat 4s ease-in-out infinite;
+  animation:
+    candyFloat 4s ease-in-out infinite,
+    holoGlow 3s ease-in-out infinite;
 }
 
 .face-frame img{
@@ -409,6 +375,8 @@ button{cursor:pointer}
   object-position:center 20%;
   transform-origin:center center;
   animation:candyBreath 4s ease-in-out infinite;
+  filter:contrast(1.04) saturate(1.08)
+    drop-shadow(0 0 8px rgba(69,221,255,.15));
   will-change:transform;
 }
 
@@ -442,33 +410,19 @@ button{cursor:pointer}
   pointer-events:none;
 }
 
-/* MOVIMIENTO SUAVE DEL ROSTRO */
-
 @keyframes candyFloat{
-  0%,100%{
-    transform:translateY(0);
-  }
-  50%{
-    transform:translateY(-9px);
-  }
+  0%,100%{transform:translateY(0)}
+  50%{transform:translateY(-9px)}
 }
 
 @keyframes candyBreath{
-  0%,100%{
-    transform:scale(1);
-  }
-  50%{
-    transform:scale(1.035);
-  }
+  0%,100%{transform:scale(1)}
+  50%{transform:scale(1.035)}
 }
 
 @keyframes candyScan{
-  from{
-    background-position:0 -100%;
-  }
-  to{
-    background-position:0 100%;
-  }
+  from{background-position:0 -100%}
+  to{background-position:0 100%}
 }
 
 .face-fallback{
@@ -733,6 +687,47 @@ textarea:focus,input:focus{
   letter-spacing:1px;
 }
 
+/* ESTADOS DINAMICOS DE CANDY */
+
+/* ESCUCHANDO */
+body[data-candy-state="listening"] .ring{
+  filter:drop-shadow(0 0 12px #45ddff);
+  animation-duration:3s;
+}
+
+body[data-candy-state="listening"] .face-frame{
+  box-shadow:
+    0 0 25px rgba(69,221,255,.8),
+    0 0 65px rgba(31,176,232,.5);
+}
+
+/* PENSANDO */
+body[data-candy-state="thinking"] .avatar-stage:before{
+  animation-duration:8s;
+  opacity:.9;
+}
+
+body[data-candy-state="thinking"] .avatar-stage:after{
+  animation-duration:1.8s;
+  opacity:.9;
+}
+
+/* HABLANDO */
+body[data-candy-state="speaking"] .face-frame{
+  animation:
+    candyFloat 2s ease-in-out infinite,
+    holoGlow 1s ease-in-out infinite;
+}
+
+body[data-candy-state="speaking"] .ring{
+  filter:drop-shadow(0 0 14px #45ddff);
+}
+
+body[data-candy-state="speaking"] .avatar-stage:after{
+  animation-duration:1.2s;
+  opacity:1;
+}
+
 @media(max-width:1050px){
   .dashboard{
     grid-template-columns:175px minmax(280px,1fr);
@@ -819,7 +814,7 @@ textarea:focus,input:focus{
 </style>
 </head>
 
-<body>
+<body data-candy-state="idle">
 <div class="shell">
 
 <header class="topbar">
@@ -973,8 +968,11 @@ let escuchando = false;
 let procesando = false;
 let candyPassword = "";
 
-function estado(texto){
+/* CONTROL DE ESTADOS VISUALES */
+
+function estado(texto, estadoCandy = "idle"){
   statusBox.textContent = texto;
+  document.body.dataset.candyState = estadoCandy;
 }
 
 function mostrar(quien,texto){
@@ -1039,12 +1037,13 @@ async function conectar(){
     }
 
     loginBox.classList.add("hidden");
-    estado("Conexión establecida. Candy está preparada.");
+    estado("Conexión establecida. Candy está preparada.","idle");
     mostrar("Candy","Conexión establecida. Ya podemos hablar.");
 
   }catch(error){
     candyPassword = "";
     loginError.textContent = error.message;
+    estado("No se pudo establecer la conexión.","idle");
 
   }finally{
     document.getElementById("unlock").disabled = false;
@@ -1059,7 +1058,7 @@ async function enviarMensaje(texto){
 
   if(!candyPassword){
     loginBox.classList.remove("hidden");
-    estado("Conecta primero con tu contraseña.");
+    estado("Conecta primero con tu contraseña.","idle");
     return;
   }
 
@@ -1068,7 +1067,7 @@ async function enviarMensaje(texto){
   listenButton.disabled = true;
 
   mostrar("Tú",texto);
-  estado("Candy está pensando...");
+  estado("Candy está pensando...","thinking");
 
   try{
     const respuesta = await llamarCandy("chat",texto);
@@ -1078,7 +1077,7 @@ async function enviarMensaje(texto){
     }
 
     mostrar("Candy",respuesta.text);
-    estado("Respuesta recibida. Preparando la voz...");
+    estado("Respuesta recibida. Preparando la voz...","thinking");
 
     try{
       const voz = await llamarCandy("voice",respuesta.text);
@@ -1089,18 +1088,27 @@ async function enviarMensaje(texto){
 
       const audio = new Audio("data:audio/mpeg;base64," + voz.audio);
 
-      estado("Candy está hablando...");
+      estado("Candy está hablando...","speaking");
 
-      audio.onended = () => estado("Candy está preparada.");
+      audio.onended = () => {
+        estado("Candy está preparada.","idle");
+      };
+
+      audio.onerror = () => {
+        estado("Candy ha terminado la respuesta de voz.","idle");
+      };
 
       await audio.play();
 
     }catch(voiceError){
-      estado("Candy ha respondido por texto. Voz: " + voiceError.message);
+      estado(
+        "Candy ha respondido por texto. Voz: " + voiceError.message,
+        "idle"
+      );
     }
 
   }catch(error){
-    estado("Aviso: " + error.message);
+    estado("Aviso: " + error.message,"idle");
 
   }finally{
     procesando = false;
@@ -1135,13 +1143,13 @@ listenButton.addEventListener("click",()=>{
     window.SpeechRecognition || window.webkitSpeechRecognition;
 
   if(!SpeechRecognition){
-    estado("Este navegador no admite reconocimiento de voz.");
+    estado("Este navegador no admite reconocimiento de voz.","idle");
     return;
   }
 
   if(!candyPassword){
     loginBox.classList.remove("hidden");
-    estado("Conecta primero con tu contraseña.");
+    estado("Conecta primero con tu contraseña.","idle");
     return;
   }
 
@@ -1155,7 +1163,7 @@ listenButton.addEventListener("click",()=>{
 
     recognition.onstart = ()=>{
       escuchando = true;
-      estado("Candy te está escuchando...");
+      estado("Candy te está escuchando...","listening");
     };
 
     recognition.onresult = event=>{
@@ -1167,7 +1175,7 @@ listenButton.addEventListener("click",()=>{
 
     recognition.onerror = event=>{
       escuchando = false;
-      estado("Error de micrófono: " + event.error);
+      estado("Error de micrófono: " + event.error,"idle");
     };
 
     recognition.onend = ()=>{
@@ -1178,7 +1186,7 @@ listenButton.addEventListener("click",()=>{
 
   }catch(error){
     escuchando = false;
-    estado("No se pudo iniciar el micrófono: " + error.message);
+    estado("No se pudo iniciar el micrófono: " + error.message,"idle");
   }
 });
 
@@ -1190,7 +1198,7 @@ stopButton.addEventListener("click",()=>{
   }
 
   escuchando = false;
-  estado("Escucha detenida.");
+  estado("Escucha detenida.","idle");
 });
 
 document.querySelectorAll(".nav button").forEach(button=>{
@@ -1204,11 +1212,15 @@ document.querySelectorAll(".nav button").forEach(button=>{
     const section = button.dataset.section;
 
     if(section === "Inicio"){
-      estado("Candy está preparada.");
+      estado("Candy está preparada.","idle");
       return;
     }
 
-    estado(section + " todavía no está conectado. Lo activaremos en una siguiente fase.");
+    estado(
+      section + " todavía no está conectado. Lo activaremos en una siguiente fase.",
+      "idle"
+    );
+
     mostrar("Candy",section + " estará disponible cuando conectemos este módulo.");
   });
 });
