@@ -253,6 +253,134 @@ button{cursor:pointer}
 @keyframes rotateback{
   to{transform:translate(-50%,-50%) rotate(-360deg)}
 }
+  
+/* =====================================
+   CANDY - SISTEMA HOLOGRAFICO CINEMATICO
+   ===================================== */
+
+.avatar-stage{
+  isolation:isolate;
+  perspective:1000px;
+}
+
+.avatar-stage:before{
+  content:"";
+  position:absolute;
+  width:min(102%,490px);
+  aspect-ratio:1;
+  border-radius:50%;
+  pointer-events:none;
+  z-index:0;
+  background:
+    repeating-conic-gradient(
+      from 0deg,
+      rgba(69,221,255,.65) 0deg 1deg,
+      transparent 1deg 9deg
+    );
+  -webkit-mask:radial-gradient(
+    circle,
+    transparent 67%,
+    #000 68%,
+    #000 69%,
+    transparent 70%
+  );
+  mask:radial-gradient(
+    circle,
+    transparent 67%,
+    #000 68%,
+    #000 69%,
+    transparent 70%
+  );
+  animation:holoOrbit 45s linear infinite;
+  opacity:.55;
+}
+
+.avatar-stage:after{
+  content:"";
+  position:absolute;
+  width:min(90%,420px);
+  height:2px;
+  left:50%;
+  top:50%;
+  transform:translate(-50%,-50%);
+  pointer-events:none;
+  z-index:2;
+  background:linear-gradient(
+    90deg,
+    transparent,
+    rgba(69,221,255,.8),
+    transparent
+  );
+  box-shadow:0 0 15px #45ddff;
+  animation:holoSweep 5s ease-in-out infinite;
+  opacity:.55;
+}
+
+.ring.one{
+  border-width:2px;
+  border-color:rgba(69,221,255,.65);
+  box-shadow:
+    0 0 18px rgba(69,221,255,.25),
+    inset 0 0 20px rgba(69,221,255,.12);
+}
+
+.ring.two{
+  border-color:rgba(69,221,255,.5);
+  filter:drop-shadow(0 0 5px rgba(69,221,255,.5));
+}
+
+.ring.three{
+  box-shadow:0 0 24px rgba(69,221,255,.12);
+}
+
+.face-frame{
+  border:2px solid rgba(82,222,255,.85);
+  box-shadow:
+    0 0 15px rgba(69,221,255,.65),
+    0 0 40px rgba(31,176,232,.4),
+    0 0 90px rgba(20,124,184,.25),
+    inset 0 0 25px rgba(69,221,255,.15);
+}
+
+.face-frame img{
+  filter:
+    contrast(1.04)
+    saturate(1.08)
+    drop-shadow(0 0 8px rgba(69,221,255,.15));
+}
+
+@keyframes holoOrbit{
+  to{transform:rotate(360deg)}
+}
+
+@keyframes holoSweep{
+  0%,100%{
+    opacity:.12;
+    width:35%;
+  }
+  50%{
+    opacity:.85;
+    width:90%;
+  }
+}
+
+@keyframes holoGlow{
+  0%,100%{
+    box-shadow:0 0 18px rgba(69,221,255,.35);
+  }
+  50%{
+    box-shadow:
+      0 0 35px rgba(69,221,255,.75),
+      0 0 75px rgba(31,176,232,.3);
+  }
+}
+
+.face-frame{
+  animation:
+    candyFloat 4s ease-in-out infinite,
+    holoGlow 3s ease-in-out infinite;
+}
+
 
 /* ROSTRO ORIGINAL DE CANDY */
 
